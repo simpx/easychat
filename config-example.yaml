@@ -1,3 +1,4 @@
 token: 
 encoding_aes_key: 
-corp_id: 
+corpid: 
+secret:

@@ -2,8 +2,9 @@ from flask import Flask, request, make_response
 import xml.etree.cElementTree as ET
 import yaml
 import logging
+import json
 from weworkapi_python.callback.WXBizMsgCrypt3 import WXBizMsgCrypt
-from easy_wework import get_access_token
+from easy_wework import get_messages, send_text, load_config
 
 # 设置日志格式
 logging.basicConfig(level=logging.DEBUG)
@@ -15,10 +16,12 @@ with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
     sToken = config['token']
     sEncodingAESKey = config['encoding_aes_key']
-    sCorpID = config['corp_id']
+    sCorpID = config['corpid']
+    sSecret = config['secret']
+
+load_config('config.yaml')
 
 wxcpt = WXBizMsgCrypt(sToken, sEncodingAESKey, sCorpID)
-
 
 @app.route('/verify_url', methods=['GET'])
 def verify_url():
@@ -34,8 +37,10 @@ def verify_url():
     return sEchoStr
 
 
+cursor = None
 @app.route('/verify_url', methods=['POST'])
 def weixin():
+    global cursor
     sReqMsgSig = request.args.get('msg_signature')
     sReqTimeStamp = request.args.get('timestamp')
     sReqNonce = request.args.get('nonce')
@@ -47,26 +52,25 @@ def weixin():
         return "ERROR", 403
 
     xml_tree = ET.fromstring(sMsg)
-    for elem in xml_tree.iter():
-        logging.info(f"Element: {elem.tag} - Text: {elem.text}")
-    content = xml_tree.find("Content").text
+    req = {
+        "ToUserName": xml_tree.find("ToUserName").text,
+        "CreateTime": xml_tree.find("CreateTime").text,
+        "MsgType": xml_tree.find("MsgType").text,
+        "Event": xml_tree.find("Event").text,
+        "Token": xml_tree.find("Token").text,
+        "OpenKfId": xml_tree.find("OpenKfId").text
+    }
 
-    # 回复相同的消息内容
-    response = """
-    <xml>
-    <ToUserName><![CDATA[{}]]></ToUserName>
-    <FromUserName><![CDATA[{}]]></FromUserName>
-    <CreateTime>{}</CreateTime>
-    <MsgType><![CDATA[text]]></MsgType>
-    <Content><![CDATA[{}]]></Content>
-    </xml>
-    """.format(xml_tree.find("FromUserName").text, xml_tree.find("ToUserName").text, xml_tree.find("CreateTime").text, content)
-
-    ret, sEncryptMsg = wxcpt.EncryptMsg(response, sReqNonce)
-    if ret != 0:
-        logging.error(f"Failed in EncryptMsg, error code: {ret}")
-        return "ERROR", 403
-    return sEncryptMsg
+    messages = get_messages(req['Token'], cursor)
+    cursor = messages['next_cursor']
+    for message in messages['msg_list']:
+        try:
+            send_text(message['external_userid'], message['open_kfid'], message['text']['content'])
+        except Exception as e:
+            message_str = json.dumps(message, indent=4)
+            logging.error(f"Failed in send_text: {message_str}")
+            
+    return ''
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8899)
