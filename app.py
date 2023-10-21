@@ -3,6 +3,7 @@ import xml.etree.cElementTree as ET
 import yaml
 import logging
 from weworkapi_python.callback.WXBizMsgCrypt3 import WXBizMsgCrypt
+from easy_wework import get_access_token
 
 # 设置日志格式
 logging.basicConfig(level=logging.DEBUG)
@@ -33,7 +34,7 @@ def verify_url():
     return sEchoStr
 
 
-@app.route('/weixin', methods=['POST'])
+@app.route('/verify_url', methods=['POST'])
 def weixin():
     sReqMsgSig = request.args.get('msg_signature')
     sReqTimeStamp = request.args.get('timestamp')
@@ -46,6 +47,8 @@ def weixin():
         return "ERROR", 403
 
     xml_tree = ET.fromstring(sMsg)
+    for elem in xml_tree.iter():
+        logging.info(f"Element: {elem.tag} - Text: {elem.text}")
     content = xml_tree.find("Content").text
 
     # 回复相同的消息内容
