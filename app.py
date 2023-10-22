@@ -43,7 +43,9 @@ def ask_gpt(txt):
     )
     return response['choices'][0]['message']['content']
 
-cursor = "4gw7MepFLfgF2VC5nqS"
+with open('cursor', 'r') as f:
+    cursor = f.read().strip()
+
 @app.route('/verify_url', methods=['POST'])
 def weixin():
     global cursor
@@ -60,6 +62,8 @@ def weixin():
     messages = get_messages(req['Token'], cursor)
     cursor = messages['next_cursor']
     logging.info(f"cursor is: {cursor}")
+    with open('cursor', 'w+') as f:
+        f.write(cursor)
     for message in messages['msg_list']:
         if message['msgtype'] != 'text':
             message_str = json.dumps(message, indent=4)
