@@ -1,6 +1,8 @@
 import yaml
 import requests
 from datetime import datetime, timedelta
+import xml.etree.cElementTree as ET
+from .weworkapi_python.callback.WXBizMsgCrypt3 import WXBizMsgCrypt
 
 token = None
 encoding_aes_key = None
@@ -11,14 +13,17 @@ secret = None
 access_token_cache = None
 token_expire_time = None
 
+wxcpt = None
+
 def load_config(config_yaml):
-	global token, encoding_aes_key, corpid, secret
-	with open(config_yaml, 'r') as f:
-		config = yaml.safe_load(f)
-		token = config['token']
-		encoding_aes_key = config['encoding_aes_key']
-		corpid = config['corpid']
-		secret = config['secret']
+    global token, encoding_aes_key, corpid, secret, wxcpt
+    with open(config_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        token = config['token']
+        encoding_aes_key = config['encoding_aes_key']
+        corpid = config['corpid']
+        secret = config['secret']
+        wxcpt = WXBizMsgCrypt(token, encoding_aes_key, corpid)
 
 def get_access_token(force_renew=False):
     global access_token_cache, token_expire_time
@@ -42,7 +47,6 @@ def get_access_token(force_renew=False):
     else:
         # 如果出错，抛出异常
         raise Exception(f"Failed to get access_token: {data.get('errmsg')}")
-
 
 def get_messages(token, cursor=None, limit=1000):
     access_token = get_access_token()
@@ -99,6 +103,24 @@ def send_text(touser, open_kfid, text):
             raise Exception(f"Error from API: {data.get('errmsg')}")
     else:
         response.raise_for_status()
+
+def verify_url(msg_signature, timestamp, nonce, echostr):
+    return wxcpt.VerifyURL(msg_signature, timestamp, nonce, echostr)
+
+def decrypt_msg(req_data, msg_signature, timestamp, nonce):
+    ret, msg = wxcpt.DecryptMsg(req_data, msg_signature, timestamp, nonce)
+    if ret != 0:
+        return ret, msg
+    else:
+        xml_tree = ET.fromstring(msg)
+        return ret, {
+            "ToUserName": xml_tree.find("ToUserName").text,
+            "CreateTime": xml_tree.find("CreateTime").text,
+            "MsgType": xml_tree.find("MsgType").text,
+            "Event": xml_tree.find("Event").text,
+            "Token": xml_tree.find("Token").text,
+            "OpenKfId": xml_tree.find("OpenKfId").text
+        }
 
 def get_conversation_status(open_kfid, external_userid):
     access_token = get_access_token()

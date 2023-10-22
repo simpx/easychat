@@ -1,11 +1,10 @@
 from flask import Flask, request, make_response
-import xml.etree.cElementTree as ET
 import yaml
 import logging
 import json
 import openai
-from weworkapi_python.callback.WXBizMsgCrypt3 import WXBizMsgCrypt
 from easy_wework import get_messages, send_text, load_config
+import easy_wework
 
 # 设置日志格式
 logging.basicConfig(level=logging.DEBUG)
@@ -15,16 +14,11 @@ app = Flask(__name__)
 # 从config.yaml加载配置
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
-    sToken = config['token']
-    sEncodingAESKey = config['encoding_aes_key']
-    sCorpID = config['corpid']
-    sSecret = config['secret']
     sApikey = config['api_key']
 
 load_config('config.yaml')
 openai.api_key = sApikey
 
-wxcpt = WXBizMsgCrypt(sToken, sEncodingAESKey, sCorpID)
 
 @app.route('/verify_url', methods=['GET'])
 def verify_url():
@@ -33,7 +27,7 @@ def verify_url():
     sVerifyNonce = request.args.get('nonce')
     sVerifyEchoStr = request.args.get('echostr')
 
-    ret, sEchoStr = wxcpt.VerifyURL(sVerifyMsgSig, sVerifyTimeStamp, sVerifyNonce, sVerifyEchoStr)
+    ret, sEchoStr = easy_wework.verify_url(sVerifyMsgSig, sVerifyTimeStamp, sVerifyNonce, sVerifyEchoStr)
     if ret != 0:
         logging.error(f"Failed in VerifyURL, error code: {ret}")
         return "ERROR", 403
@@ -49,7 +43,7 @@ def ask_gpt(txt):
     )
     return response['choices'][0]['message']['content']
 
-cursor = "4gw7MepFLfgF2VC5nph"
+cursor = "4gw7MepFLfgF2VC5nqS"
 @app.route('/verify_url', methods=['POST'])
 def weixin():
     global cursor
@@ -58,25 +52,19 @@ def weixin():
     sReqNonce = request.args.get('nonce')
     sReqData = request.data
 
-    ret, sMsg = wxcpt.DecryptMsg(sReqData, sReqMsgSig, sReqTimeStamp, sReqNonce)
+    ret, req = easy_wework.decrypt_msg(sReqData, sReqMsgSig, sReqTimeStamp, sReqNonce)
     if ret != 0:
         logging.error(f"Failed in DecryptMsg, error code: {ret}")
         return "ERROR", 403
-
-    xml_tree = ET.fromstring(sMsg)
-    req = {
-        "ToUserName": xml_tree.find("ToUserName").text,
-        "CreateTime": xml_tree.find("CreateTime").text,
-        "MsgType": xml_tree.find("MsgType").text,
-        "Event": xml_tree.find("Event").text,
-        "Token": xml_tree.find("Token").text,
-        "OpenKfId": xml_tree.find("OpenKfId").text
-    }
 
     messages = get_messages(req['Token'], cursor)
     cursor = messages['next_cursor']
     logging.info(f"cursor is: {cursor}")
     for message in messages['msg_list']:
+        if message['msgtype'] != 'text':
+            message_str = json.dumps(message, indent=4)
+            logging.info(f"Skip message : {message_str}")
+            continue
         try:
             answer = ask_gpt(message['text']['content'])
             send_text(message['external_userid'], message['open_kfid'], answer)
