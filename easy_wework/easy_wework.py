@@ -104,6 +104,52 @@ def send_text(touser, open_kfid, text):
     else:
         response.raise_for_status()
 
+def send_menu(touser, open_kfid, text):
+    access_token = get_access_token()
+    # API endpoint
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/send_msg?access_token={access_token}"
+
+    # Request payload
+    payload = {
+        "touser": touser,
+        "open_kfid": open_kfid,
+        # 如果有特定的msgid可以添加，但在这里我们允许微信系统自动生成
+        "msgtype": "msgmenu",
+        "msgmenu": {
+            "list": [
+                {
+                    "type": "text", 
+                    "text": {
+                        "content": f"{text}",
+                        "no_newline": 0
+                    }
+                },
+                {
+                    "type": "click", 
+                    "click": {
+                        "id": "101", 
+                        "content": "点此开启新会话"
+                    }
+                } 
+                
+            ], 
+        }
+    }
+
+    # Make the POST request
+    response = requests.post(url, json=payload)
+    
+    # Check the response status
+    if response.status_code == 200:
+        data = response.json()
+        if data.get('errcode') == 0:
+            return data  # 返回成功的响应，包含msgid等信息
+        else:
+            raise Exception(f"Error from API: {data.get('errmsg')}")
+    else:
+        response.raise_for_status()
+
+
 def verify_url(msg_signature, timestamp, nonce, echostr):
     return wxcpt.VerifyURL(msg_signature, timestamp, nonce, echostr)
 

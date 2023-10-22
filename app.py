@@ -3,7 +3,7 @@ import yaml
 import logging
 import json
 import openai
-from easy_wework import get_messages, send_text, load_config
+from easy_wework import get_messages, send_text, load_config, send_menu
 import easy_wework
 
 # 设置日志格式
@@ -65,13 +65,17 @@ def weixin():
     with open('cursor', 'w+') as f:
         f.write(cursor)
     for message in messages['msg_list']:
-        if message['msgtype'] != 'text':
+        if message['msgtype'] != 'text' or "menu_id" in message['text']:
             message_str = json.dumps(message, indent=4)
             logging.info(f"Skip message : {message_str}")
             continue
         try:
             answer = ask_gpt(message['text']['content'])
-            send_text(message['external_userid'], message['open_kfid'], answer)
+            if len(answer) < 255:
+                send_menu(message['external_userid'], message['open_kfid'], answer)
+            else:
+                send_text(message['external_userid'], message['open_kfid'], answer)
+                send_menu(message['external_userid'], message['open_kfid'], "点击")
             message_str = json.dumps(message, indent=4)
             logging.info(f"Success in : {message_str}")
         except Exception as e:
