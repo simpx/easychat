@@ -35,7 +35,7 @@ def verify_url():
 
 def ask_gpt(txt):
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4",
         messages=[{"role": "system", "content": "你是一个专业、精准、简洁的助手"},
                   {"role": "user", "content": f"{txt}\n"}],
         max_tokens=500,
@@ -70,16 +70,15 @@ def weixin():
             logging.info(f"Skip message : {message_str}")
             continue
         try:
+            send_text(message['external_userid'], message['open_kfid'], "思考中...")
             answer = ask_gpt(message['text']['content'])
-            if len(answer) < 255:
-                send_menu(message['external_userid'], message['open_kfid'], answer)
-            else:
-                send_text(message['external_userid'], message['open_kfid'], answer)
-                send_menu(message['external_userid'], message['open_kfid'], "点击")
+            send_text(message['external_userid'], message['open_kfid'], answer)
+            send_menu(message['external_userid'], message['open_kfid'], "点击")
             message_str = json.dumps(message, indent=4)
             logging.info(f"Success in : {message_str}")
         except Exception as e:
             message_str = json.dumps(message, indent=4)
+            send_text(message['external_userid'], message['open_kfid'], "出错了，请重新提问")
             logging.exception(f"Failed in send_text: {message_str}")
             
     return ''
