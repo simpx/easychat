@@ -1,7 +1,10 @@
-from easy_bot import EasyBot, Session
+from easychat import EasyChat, Session
 import json
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
-app = EasyBot("/verify_url", "HHFq49uYHoiCuZRv9MtM")
+app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9MtM")
+app.load_config("config.yaml")
 
 @app.on_chat([".*"])
 def handle_chat(request, session: Session):

@@ -2,7 +2,7 @@ import yaml
 import requests
 from datetime import datetime, timedelta
 import xml.etree.cElementTree as ET
-from .weworkapi_python.callback.WXBizMsgCrypt3 import WXBizMsgCrypt
+from .WXBizMsgCrypt3 import WXBizMsgCrypt
 
 token = None
 encoding_aes_key = None

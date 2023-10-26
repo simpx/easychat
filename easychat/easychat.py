@@ -1,13 +1,10 @@
+import json
+import logging
 import re
 import yaml
-import json
-from typing import Callable, List
 from flask import Flask, request, jsonify
-import logging
-from .easy_wework import get_messages, send_text, load_config, send_menu, decrypt_msg
-
-load_config('config.yaml')
-logging.basicConfig(level=logging.DEBUG)
+from typing import Callable, List
+from .wework import get_messages, send_text, load_config, send_menu, decrypt_msg
 
 class Session:
     def __init__(self, user_id, bot_id):
@@ -19,7 +16,7 @@ class Session:
         self.messages.append({"role": "bot", "id": self.bot_id, "content": message})
         send_text(self.user_id, self.bot_id, message)
 
-class EasyBot:
+class EasyChat:
     def __init__(self, url, cursor = None):
         self.app = Flask("easy_wework")
         self.sessions = {}
@@ -27,18 +24,17 @@ class EasyBot:
         self.event_callbacks = []
         self.url = url
         self.cursor = cursor
+        self.config = None
         self._setup_routes()
+
+    def load_config(self, config):
+        self.config = config
+        load_config(config)
 
     def _setup_routes(self):
         @self.app.route(self.url, methods=["POST"])
         def chat_route():
             return self._handle_chat()
-
-        '''
-        @self.app.route(, methods=["POST"])
-        def event_route():
-            return self._handle_event()
-        '''
 
     def on_chat(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
