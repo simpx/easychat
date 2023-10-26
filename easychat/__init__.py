@@ -1,1 +1,1 @@
-from .easychat import EasyChat, Session
+from .easychat import EasyChat, Bot, Session

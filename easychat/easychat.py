@@ -16,9 +16,19 @@ class Session:
         self.messages.append({"role": "bot", "id": self.bot_id, "content": message})
         send_text(self.user_id, self.bot_id, message)
 
+class Bot:
+    def __init__(self, name):
+        self.name = name
+        self.bot_callbacks = []
+    def on_chat(self, bot_ids: List[str] = [".*"]):
+        def decorator(callback: Callable):
+            self.bot_callbacks.append((bot_ids, callback))
+            return callback
+        return decorator
+
 class EasyChat:
     def __init__(self, url, cursor = None):
-        self.app = Flask("easy_wework")
+        self.app = Flask("easychat")
         self.sessions = {}
         self.chat_callbacks = []
         self.event_callbacks = []
@@ -35,6 +45,9 @@ class EasyChat:
         @self.app.route(self.url, methods=["POST"])
         def chat_route():
             return self._handle_chat()
+
+    def serve(self, bot):
+        self.chat_callbacks.extend(bot.bot_callbacks)
 
     def on_chat(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
