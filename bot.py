@@ -7,7 +7,7 @@ import openai
 
 logging.basicConfig(level=logging.DEBUG)
 
-app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9Skq")
+app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9TWy")
 app.load_config("config.yaml")
 
 with open('config.yaml', 'r') as f:
@@ -24,12 +24,19 @@ def ask_gpt(txt):
     )
     return response['choices'][0]['message']['content']
 
-@app.on_chat([".*"])
+@app.on_chat(["wkhGrzVQAAsPPcLzR70ggqBkJ9NYwSDQ"])
 def handle_chat(request, session: Session):
     r_str = json.dumps(request, indent=4)
     logging.info(f"request in : {r_str}")
     session.send_message("思考中...")
     return ask_gpt(request["content"])
+
+@app.on_chat(["wkhGrzVQAAZ3gXdLV_HJM1V00Y_4QjiA"])
+def handle_echo(request, session: Session):
+    r_str = json.dumps(request, indent=4)
+    logging.info(f"request in : {r_str}")
+    return request["content"]
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=8899)
