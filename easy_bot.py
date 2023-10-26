@@ -18,6 +18,7 @@ class Session:
 
     def send_message(self, message):
         self.messages.append({"role": "bot", "id": self.bot_id, "content": message})
+        send_text(self.user_id, self.bot_id, message)
 
 class EasyBot:
     def __init__(self, url, cursor = None):
@@ -40,7 +41,7 @@ class EasyBot:
             return self._handle_event()
         '''
 
-    def on_chat(self, bot_ids: List[str]):
+    def on_chat(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
             self.chat_callbacks.append((bot_ids, callback))
             return callback
@@ -96,9 +97,10 @@ class EasyBot:
                 r = {"type": "message", "user_id": user_id, "bot_id": bot_id, "content": user_msg}
                 response = callback(r, self.sessions[user_id])
                 if isinstance(response, str):
-                    self.sessions[user_id].messages.append({"role": "bot", "id": bot_id, "content": response})
+                    self.sessions[user_id].send_message(response)
                 logging.info(f"Success in : {message_str}")
             except Exception as e:
                 message_str = json.dumps(message, indent=4)
                 send_text(message['external_userid'], message['open_kfid'], "出错了，请重新提问")
                 logging.exception(f"Failed in send_text: {message_str}")
+        return ""
