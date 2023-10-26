@@ -4,8 +4,7 @@ import json
 from typing import Callable, List
 from flask import Flask, request, jsonify
 import logging
-from easy_wework import get_messages, send_text, load_config, send_menu
-import easy_wework
+from .easy_wework import get_messages, send_text, load_config, send_menu, decrypt_msg
 
 load_config('config.yaml')
 logging.basicConfig(level=logging.DEBUG)
@@ -71,7 +70,7 @@ class EasyBot:
         sReqTimeStamp = request.args.get('timestamp')
         sReqNonce = request.args.get('nonce')
         sReqData = request.data
-        ret, req = easy_wework.decrypt_msg(sReqData, sReqMsgSig, sReqTimeStamp, sReqNonce)
+        ret, req = decrypt_msg(sReqData, sReqMsgSig, sReqTimeStamp, sReqNonce)
         if ret != 0:
             logging.error(f"Failed in DecryptMsg, error code: {ret}")
             return "ERROR", 403
