@@ -96,16 +96,17 @@ class EasyChat:
                 user_msg = message['text']['content']
                 bot_id = message['open_kfid']
                 message_str = json.dumps(user_msg, indent=4)
-                if user_id not in self.sessions:
-                    self.sessions[user_id] = Session(user_id, bot_id)
-                self.sessions[user_id].messages.append({"role": "user", "id": user_id, "content": message})
+                if (user_id, bot_id) not in self.sessions:
+                    self.sessions[(user_id, bot_id)] = Session(user_id, bot_id)
+                    logging.info(f"new session: ({user_id}, {bot_id})")
+                self.sessions[(user_id, bot_id)].messages.append({"role": "user", "id": user_id, "content": message})
                 callback = self._get_callback(bot_id, self.chat_callbacks)
                 if not callback:
                     return "ERROR", 500
                 r = {"type": "message", "user_id": user_id, "bot_id": bot_id, "content": user_msg}
-                response = callback(r, self.sessions[user_id])
+                response = callback(r, self.sessions[(user_id, bot_id)])
                 if isinstance(response, str):
-                    self.sessions[user_id].send_message(response)
+                    self.sessions[(user_id, bot_id)].send_message(response)
                 logging.info(f"Success in : {message_str}")
             except Exception as e:
                 message_str = json.dumps(message, indent=4)

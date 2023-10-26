@@ -1,10 +1,14 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+
 from easychat import EasyChat, Session
 import json
 import logging
 from second_bot import bot
 logging.basicConfig(level=logging.DEBUG)
 
-app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9Pnh")
+app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9Rqs")
 app.load_config("config.yaml")
 
 @app.on_chat(["wkhGrzVQAAZ3gXdLV_HJM1V00Y_4QjiA"])
