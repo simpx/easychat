@@ -1,3 +1,7 @@
 __pycache__
 *.swp
 config.yaml
+build/
+dist/
+*.egg-info/
+cursor
