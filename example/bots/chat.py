@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
+
 from easychat import EasyChat, Session
 import json
 import logging
@@ -8,7 +12,7 @@ import openai
 logging.basicConfig(level=logging.DEBUG)
 
 app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9TWy")
-app.load_config("config.yaml")
+app.load_config("../../config.yaml")
 
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)

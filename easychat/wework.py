@@ -191,3 +191,27 @@ def get_conversation_status(open_kfid, external_userid):
             raise Exception(f"Error from API: {data.get('errmsg', 'Unknown error')}")
     else:
         response.raise_for_status()
+
+def get_bots():
+    access_token = get_access_token()
+    # API endpoint
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/kf/account/list?access_token={access_token}"
+    
+    # Request payload
+    payload = {
+        "offset": 0,
+        "limit": 100
+    }
+
+    # Make the POST request
+    response = requests.post(url, json=payload)
+    
+    # Check the response status
+    if response.status_code == 200:
+        data = response.json()
+        if 'errcode' in data and data.get('errcode') == 0:
+            return data  # 返回成功获取的数据
+        else:
+            raise Exception(f"Error from API: {data.get('errmsg', 'Unknown error')}")
+    else:
+        response.raise_for_status()
