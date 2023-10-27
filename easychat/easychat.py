@@ -33,7 +33,8 @@ class EasyChat:
         self.chat_callbacks = []
         self.event_callbacks = []
         self.url = url
-        self.cursor = cursor
+        self.cursor = cursor if cursor else open("cursor", "r").read().strip()
+        open("cursor", "w+").write(self.cursor)
         self.config = None
         self._setup_routes()
 
@@ -85,6 +86,7 @@ class EasyChat:
             return "ERROR", 403
         messages = get_messages(req['Token'], cursor = self.cursor)
         self.cursor = messages['next_cursor']
+        open("cursor", "w+").write(self.cursor)
         logging.info(f"cursor is: {self.cursor}")
         for message in messages['msg_list']:
             if message['msgtype'] != 'text' or "menu_id" in message['text']:

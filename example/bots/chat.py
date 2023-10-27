@@ -16,7 +16,7 @@ import forward
 import english
 
 if __name__ == "__main__":
-    app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9Viy")
+    app = EasyChat("/verify_url")
     app.load_config("../../config.yaml")
     app.serve(echo.bot)
     app.serve(forward.bot)
