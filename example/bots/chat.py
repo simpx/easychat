@@ -13,10 +13,12 @@ logging.basicConfig(level=logging.DEBUG)
 
 import echo
 import forward
+import english
 
 if __name__ == "__main__":
     app = EasyChat("/verify_url", "HHFq49uYHoiCuZRv9Viy")
     app.load_config("../../config.yaml")
     app.serve(echo.bot)
     app.serve(forward.bot)
+    app.serve(english.bot)
     app.run(host='0.0.0.0', port=8899)
