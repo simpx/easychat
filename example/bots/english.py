@@ -19,7 +19,7 @@ Special Instructions:
 
 End-of-Day Interaction:
 
-When I message: “Run the end of day task”, please:
+When I message: “!Run the end of day task.”, please:
 
 1. List the main topics/concepts we discussed with brief explanations.
 2. Suggest 3 recommended action items or tasks based on our chat.
@@ -59,13 +59,6 @@ def handle_chat(request, session: Session):
     session.send_message(result)
     session.send_menu([
          {
-             "type": "text",
-             "text": {
-                 "content": "hello",
-                 "no_newline": 0
-             }
-         },
-         {
              "type": "click",
              "click": {
                  "id": "100",
@@ -80,14 +73,14 @@ def handle_command(request, session: Session):
     r_str = json.dumps(request, indent=4)
     logging.info(f"command request in : {r_str}")
     session.send_message("...", True)
-    if request['command'] == '100':
-        session.send_message("command 100!", True)
-    return None
+    if request['command'] != '100':
+        session.send_message("wrong command %s!" % request['command'], True)
+        return
+    session.messages.append({"role": "user", "id": request['user_id'], "content": "!Run the end of day task."})
     try:
         result = ask_gpt_with_histroy(session.messages)
     except Exception as e:
         result = "something wrong"
         logging.exception(f"Failed in ask_gpt")
-    return None
-
-
+    session.send_message(result)
+    session.destroy()

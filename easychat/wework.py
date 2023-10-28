@@ -116,6 +116,7 @@ def send_menu(touser, open_kfid, menu_list=None):
         "open_kfid": open_kfid,
         "msgtype": "msgmenu",
         "msgmenu": {
+            "head_content": "ℹ️",
             "list": menu_list,
         }
     }

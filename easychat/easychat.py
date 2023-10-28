@@ -7,10 +7,11 @@ from typing import Callable, List
 from .wework import get_messages, send_text, load_config, send_menu, decrypt_msg
 
 class Session:
-    def __init__(self, user_id, bot_id):
+    def __init__(self, user_id, bot_id, chat):
         self.user_id = user_id
         self.bot_id = bot_id
         self.messages = []
+        self.chat = chat
 
     def send_message(self, message, skip_histroy=False):
         if not skip_histroy:
@@ -19,6 +20,9 @@ class Session:
 
     def send_menu(self, menu_list=None):
         return send_menu(self.user_id, self.bot_id, menu_list)
+
+    def destroy(self):
+        del self.chat.sessions[(self.user_id, self.bot_id)]
 
 class Bot:
     def __init__(self, name):
@@ -110,7 +114,7 @@ class EasyChat:
             user_msg = message['text']['content']
             bot_id = message['open_kfid']
             if (user_id, bot_id) not in self.sessions:
-                self.sessions[(user_id, bot_id)] = Session(user_id, bot_id)
+                self.sessions[(user_id, bot_id)] = Session(user_id, bot_id, self)
                 logging.info(f"new session: ({user_id}, {bot_id})")
             if message['msgtype'] == 'text':
                 if "menu_id" in message['text']:
