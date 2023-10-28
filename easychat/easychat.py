@@ -15,15 +15,24 @@ class Session:
     def send_message(self, message, skip_histroy=False):
         if not skip_histroy:
             self.messages.append({"role": "assistant", "id": self.bot_id, "content": message})
-        send_text(self.user_id, self.bot_id, message)
+        return send_text(self.user_id, self.bot_id, message)
+
+    def send_menu(self, menu_list=None):
+        return send_menu(self.user_id, self.bot_id, menu_list)
 
 class Bot:
     def __init__(self, name):
         self.name = name
         self.bot_callbacks = []
+        self.command_callbacks = []
     def on_chat(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
             self.bot_callbacks.append((bot_ids, callback))
+            return callback
+        return decorator
+    def on_command(self, bot_ids: List[str] = [".*"]):
+        def decorator(callback: Callable):
+            self.command_callbacks.append((bot_ids, callback))
             return callback
         return decorator
 
@@ -32,6 +41,7 @@ class EasyChat:
         self.app = Flask("easychat")
         self.sessions = {}
         self.chat_callbacks = []
+        self.command_callbacks = []
         self.event_callbacks = []
         self.url = url
         self.cursor = cursor if cursor else open("cursor", "r").read().strip()
@@ -50,6 +60,7 @@ class EasyChat:
 
     def serve(self, bot):
         self.chat_callbacks.extend(bot.bot_callbacks)
+        self.command_callbacks.extend(bot.command_callbacks)
 
     def on_chat(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
@@ -57,18 +68,21 @@ class EasyChat:
             return callback
         return decorator
 
-    '''
-    def on_event(self, bot_ids: List[str]):
+    def on_command(self, bot_ids: List[str] = [".*"]):
         def decorator(callback: Callable):
-            self.event_callbacks.append((bot_ids, callback))
+            self.command_callbacks.append((bot_ids, callback))
             return callback
         return decorator
-    '''
 
     def run(self, host="127.0.0.1", port=5000):
         self.app.run(host=host, port=port)
 
-    def _get_callback(self, bot_id, callback_list):
+    def _get_callback(self, bot_id, type_):
+        if type_ == "chat":
+            callback_list = self.chat_callbacks
+        elif type_ == "command":
+            callback_list = self.command_callbacks
+
         for ids, callback in callback_list:
             for id_pattern in ids:
                 logging.info(f"id_pattern {id_pattern}, bot_id {bot_id}")
@@ -90,23 +104,29 @@ class EasyChat:
         open("cursor", "w+").write(self.cursor)
         logging.info(f"cursor is: {self.cursor}")
         for message in messages['msg_list']:
-            if message['msgtype'] != 'text' or "menu_id" in message['text']:
-                message_str = json.dumps(message, indent=4)
-                logging.info(f"Skip message : {message_str}")
+            message_str = json.dumps(message, indent=4)
+            logging.info(f"processing message : {message_str}")
+            user_id = message['external_userid']
+            user_msg = message['text']['content']
+            bot_id = message['open_kfid']
+            if (user_id, bot_id) not in self.sessions:
+                self.sessions[(user_id, bot_id)] = Session(user_id, bot_id)
+                logging.info(f"new session: ({user_id}, {bot_id})")
+            if message['msgtype'] == 'text':
+                if "menu_id" in message['text']:
+                    type_ = 'command'
+                    r = {"type": type_, "user_id": user_id, "bot_id": bot_id, "command": message['text']['menu_id'], "content": user_msg}
+                else:
+                    type_ = 'chat'
+                    self.sessions[(user_id, bot_id)].messages.append({"role": "user", "id": user_id, "content": user_msg})
+                    r = {"type": type_, "user_id": user_id, "bot_id": bot_id, "content": user_msg}
+            else:
+                logging.info(f"Skip message")
                 continue
             try:
-                user_id = message['external_userid']
-                user_msg = message['text']['content']
-                bot_id = message['open_kfid']
-                message_str = json.dumps(user_msg, indent=4)
-                if (user_id, bot_id) not in self.sessions:
-                    self.sessions[(user_id, bot_id)] = Session(user_id, bot_id)
-                    logging.info(f"new session: ({user_id}, {bot_id})")
-                self.sessions[(user_id, bot_id)].messages.append({"role": "user", "id": user_id, "content": user_msg})
-                callback = self._get_callback(bot_id, self.chat_callbacks)
+                callback = self._get_callback(bot_id, type_)
                 if not callback:
                     return "ERROR", 500
-                r = {"type": "message", "user_id": user_id, "bot_id": bot_id, "content": user_msg}
                 response = callback(r, self.sessions[(user_id, bot_id)])
                 if isinstance(response, str):
                     self.sessions[(user_id, bot_id)].send_message(response)

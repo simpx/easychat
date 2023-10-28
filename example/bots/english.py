@@ -23,6 +23,7 @@ When I message: “Run the end of day task”, please:
 
 1. List the main topics/concepts we discussed with brief explanations.
 2. Suggest 3 recommended action items or tasks based on our chat.
+3. Say Goodbye to me
 
 Thank you! 🙌
 """
@@ -30,16 +31,6 @@ Thank you! 🙌
 with open('../../config.yaml', 'r') as f:
     config = yaml.safe_load(f)
     openai.api_key = config['api_key']
-
-def ask_gpt(txt):
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "system", "content": f"{prompt}"},
-                  {"role": "user", "content": f"{txt}\n"}],
-        max_tokens=1024,
-        temperature=0.7,
-    )
-    return response['choices'][0]['message']['content']
 
 def ask_gpt_with_histroy(history):
     messages = [{"role": item["role"], "content": item["content"]} for item in history]
@@ -65,4 +56,38 @@ def handle_chat(request, session: Session):
     except Exception as e:
         result = "something wrong"
         logging.exception(f"Failed in ask_gpt")
-    return result
+    session.send_message(result)
+    session.send_menu([
+         {
+             "type": "text",
+             "text": {
+                 "content": "hello",
+                 "no_newline": 0
+             }
+         },
+         {
+             "type": "click",
+             "click": {
+                 "id": "100",
+                 "content": "结束并开启新一轮交谈"
+             }
+         },
+    ]) 
+    return None
+
+@bot.on_command(["wkhGrzVQAAsPPcLzR70ggqBkJ9NYwSDQ"])
+def handle_command(request, session: Session):
+    r_str = json.dumps(request, indent=4)
+    logging.info(f"command request in : {r_str}")
+    session.send_message("...", True)
+    if request['command'] == '100':
+        session.send_message("command 100!", True)
+    return None
+    try:
+        result = ask_gpt_with_histroy(session.messages)
+    except Exception as e:
+        result = "something wrong"
+        logging.exception(f"Failed in ask_gpt")
+    return None
+
+
