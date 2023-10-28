@@ -4,6 +4,7 @@ import yaml
 import json
 import logging
 
+logging.basicConfig(level=logging.DEBUG)
 bot = Bot("forward")
 
 prompt = """Hi ChatGPT, act as my best American friend. When I chat with you, follow this two-step routine:
@@ -40,14 +41,27 @@ def ask_gpt(txt):
     )
     return response['choices'][0]['message']['content']
 
+def ask_gpt_with_histroy(history):
+    messages = [{"role": item["role"], "content": item["content"]} for item in history]
+    ppp = [{"role": "system", "content": f"{prompt}"}] + messages
+    logging.info(f"messages: {messages}")
+    logging.info(f"prompt: {ppp}")
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=ppp,
+        max_tokens=1024,
+        temperature=0.7,
+    )
+    return response['choices'][0]['message']['content']
 
 @bot.on_chat(["wkhGrzVQAAsPPcLzR70ggqBkJ9NYwSDQ"])
 def handle_chat(request, session: Session):
     r_str = json.dumps(request, indent=4)
     logging.info(f"request in : {r_str}")
-    session.send_message("...")
+    session.send_message("...", True)
     try:
-        result = ask_gpt(request["content"])
+        result = ask_gpt_with_histroy(session.messages)
     except Exception as e:
         result = "something wrong"
         logging.exception(f"Failed in ask_gpt")

@@ -12,8 +12,9 @@ class Session:
         self.bot_id = bot_id
         self.messages = []
 
-    def send_message(self, message):
-        self.messages.append({"role": "bot", "id": self.bot_id, "content": message})
+    def send_message(self, message, skip_histroy=False):
+        if not skip_histroy:
+            self.messages.append({"role": "assistant", "id": self.bot_id, "content": message})
         send_text(self.user_id, self.bot_id, message)
 
 class Bot:
@@ -101,7 +102,7 @@ class EasyChat:
                 if (user_id, bot_id) not in self.sessions:
                     self.sessions[(user_id, bot_id)] = Session(user_id, bot_id)
                     logging.info(f"new session: ({user_id}, {bot_id})")
-                self.sessions[(user_id, bot_id)].messages.append({"role": "user", "id": user_id, "content": message})
+                self.sessions[(user_id, bot_id)].messages.append({"role": "user", "id": user_id, "content": user_msg})
                 callback = self._get_callback(bot_id, self.chat_callbacks)
                 if not callback:
                     return "ERROR", 500
