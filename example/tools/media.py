@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
@@ -19,9 +20,9 @@ def main():
     get_parser.add_argument('media_id', help='要获取的媒体文件ID')
     get_parser.add_argument('directory', nargs='?', default=None, help='保存文件的目录')
 
-    # upload命令
-    upload_parser = subparsers.add_parser('upload', help='上传文件到微信')
-    upload_parser.add_argument('filepath', help='要上传的文件的路径')
+    # put命令
+    put_parser = subparsers.add_parser('put', help='上传文件到微信')
+    put_parser.add_argument('filepath', help='要上传的文件的路径')
 
     args = parser.parse_args()
 
@@ -32,7 +33,7 @@ def main():
         else:
             print(f"文件内容：\n{content}")
 
-    elif args.command == "upload":
+    elif args.command == "put":
         media_id, media_type = put_media(args.filepath)
         print(f"上传成功！Media ID: {media_id}, Type: {media_type}")
     else:
