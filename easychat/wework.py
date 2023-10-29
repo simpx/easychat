@@ -1,6 +1,8 @@
+import os
 import yaml
 import requests
 from datetime import datetime, timedelta
+from mimetypes import guess_extension
 import xml.etree.cElementTree as ET
 from .WXBizMsgCrypt3 import WXBizMsgCrypt
 
@@ -211,3 +213,74 @@ def get_bots():
             raise Exception(f"Error from API: {data.get('errmsg', 'Unknown error')}")
     else:
         response.raise_for_status()
+
+def guess_media_type(extension):
+    if extension in ['.jpg', '.jpeg', '.png', '.gif']:
+        return 'image'
+    elif extension in ['.mp3', '.wav']:
+        return 'voice'
+    elif extension in ['.mp4']:
+        return 'video'
+    else:
+        return 'file'
+
+def get_media(media_id, filepath=None):
+    access_token = get_access_token()
+    # API endpoint
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={access_token}&media_id={media_id}"
+    headers = {}
+    # 构造文件路径
+    temp_filepath = os.path.join(filepath, media_id + '_temp') if filepath else None
+    final_filepath = os.path.join(filepath, media_id) if filepath else None
+    # 检查文件是否已经存在
+    if filepath:
+        if not os.path.exists(filepath):
+            try:
+                os.makedirs(filepath)
+            except OSError as e:
+                raise ValueError(f"Failed to create directory: {filepath}. Error: {e}")
+        for file in os.listdir(filepath):
+            if file.startswith(media_id) and not file.endswith('_temp'):
+                extension = os.path.splitext(file)[1]
+                media_type = guess_media_type(extension)
+                return os.path.join(filepath, file), media_type, None
+
+    # 断点续传
+    if os.path.exists(temp_filepath):
+        downloaded_size = os.path.getsize(temp_filepath)
+        headers['Range'] = f"bytes={downloaded_size}-"
+    else:
+        downloaded_size = 0
+
+    # 下载文件
+    response = requests.get(url, headers=headers, stream=True)
+    # 检查HTTP状态
+    if response.status_code == 416:  # 请求范围不符合要求
+        pass  # 不做任何操作，等待后续处理
+    elif response.status_code != 200:
+        response.raise_for_status()
+
+    # 写入文件
+    if filepath:
+        if response.status_code != 416:
+            with open(temp_filepath, 'ab') as f:
+                for chunk in response.iter_content(1024):
+                    f.write(chunk)
+        # 检查文件完整性
+        total_size = int(response.headers.get('Content-Length', 0))
+        if os.path.getsize(temp_filepath) != (downloaded_size + total_size):
+            raise ValueError("文件下载不完整")
+
+        # 重新命名文件
+        extension = guess_extension(response.headers.get('Content-Type'))
+        final_filepath += extension
+        os.rename(temp_filepath, final_filepath)
+        
+        media_type = guess_media_type(extension)
+        return final_filepath, media_type, None
+
+    else:
+        content = response.content
+        extension = guess_extension(response.headers.get('Content-Type'))
+        media_type = guess_media_type(extension)
+        return None, media_type, content
