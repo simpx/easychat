@@ -2,7 +2,7 @@ import os
 import yaml
 import requests
 from datetime import datetime, timedelta
-from mimetypes import guess_extension
+from mimetypes import guess_extension, guess_type
 import xml.etree.cElementTree as ET
 from .WXBizMsgCrypt3 import WXBizMsgCrypt
 
@@ -248,7 +248,7 @@ def get_media(media_id, directory=None):
     headers = {}
     # 构造文件路径
     temp_filepath = os.path.join(directory, media_id + '_temp') if directory else None
-    final_filepath = os.path.join(directory, media_id) if directroy else None
+    final_filepath = os.path.join(directory, media_id) if directory else None
     # 检查文件是否已经存在
     if directory:
         if not os.path.exists(directory):
@@ -263,7 +263,7 @@ def get_media(media_id, directory=None):
                 return os.path.join(directory, file), media_type, None
 
     # 断点续传
-    if os.path.exists(temp_filepath):
+    if temp_filepath and os.path.exists(temp_filepath):
         downloaded_size = os.path.getsize(temp_filepath)
         headers['Range'] = f"bytes={downloaded_size}-"
     else:

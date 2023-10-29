@@ -27,7 +27,7 @@ def main():
     args = parser.parse_args()
 
     if args.command == "get":
-        filepath, media_type, content = get_media(args.media_id, args.directory, access_token)
+        filepath, media_type, content = get_media(args.media_id, args.directory)
         if args.directory:
             print(f"文件已保存到：{filepath}")
         else:
