@@ -224,26 +224,43 @@ def guess_media_type(extension):
     else:
         return 'file'
 
-def get_media(media_id, filepath=None):
+def get_media(media_id, directory=None):
+    """
+    获取微信临时素材。
+
+    参数:
+    - media_id (str): 要获取的媒体文件的ID。
+    - directory (str, optional): 指定一个目录来保存媒体文件。如果此参数为空，则返回文件内容。
+
+    返回:
+    - tuple: (filepath, media_type, content)
+      - filepath (str): 文件的绝对路径。如果没有指定directory，则为None。
+      - media_type (str): 表示类型的字符串，可以是'image', 'voice', 'video', 或 'file'。
+      - content (bytes): 文件内容。如果指定了directory，则为None。
+
+    注意:
+    - 如果在指定的directory目录下找到与media_id匹配的文件，函数将直接返回该文件，不会重新下载。
+    - 断点续传是支持的。下载的文件先带有"_temp"后缀。下载完成后，该后缀将被移除，并根据文件类型添加适当的文件扩展名。
+    """
     access_token = get_access_token()
     # API endpoint
     url = f"https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={access_token}&media_id={media_id}"
     headers = {}
     # 构造文件路径
-    temp_filepath = os.path.join(filepath, media_id + '_temp') if filepath else None
-    final_filepath = os.path.join(filepath, media_id) if filepath else None
+    temp_filepath = os.path.join(directory, media_id + '_temp') if directory else None
+    final_filepath = os.path.join(directory, media_id) if directroy else None
     # 检查文件是否已经存在
-    if filepath:
-        if not os.path.exists(filepath):
+    if directory:
+        if not os.path.exists(directory):
             try:
-                os.makedirs(filepath)
+                os.makedirs(directory)
             except OSError as e:
-                raise ValueError(f"Failed to create directory: {filepath}. Error: {e}")
-        for file in os.listdir(filepath):
+                raise ValueError(f"Failed to create directory: {directory}. Error: {e}")
+        for file in os.listdir(directory):
             if file.startswith(media_id) and not file.endswith('_temp'):
                 extension = os.path.splitext(file)[1]
                 media_type = guess_media_type(extension)
-                return os.path.join(filepath, file), media_type, None
+                return os.path.join(directory, file), media_type, None
 
     # 断点续传
     if os.path.exists(temp_filepath):
@@ -261,7 +278,7 @@ def get_media(media_id, filepath=None):
         response.raise_for_status()
 
     # 写入文件
-    if filepath:
+    if directory:
         if response.status_code != 416:
             with open(temp_filepath, 'ab') as f:
                 for chunk in response.iter_content(1024):
@@ -284,3 +301,64 @@ def get_media(media_id, filepath=None):
         extension = guess_extension(response.headers.get('Content-Type'))
         media_type = guess_media_type(extension)
         return None, media_type, content
+
+def put_media(filepath, filename=None):
+    """
+    上传文件到微信作为客服消息的媒体素材。
+
+    参数:
+    - filepath (str): 要上传的文件的绝对路径。
+    - filename (str, optional): 上传时使用的文件名。如果此参数为空，将使用filepath中的文件名。
+
+    返回:
+    - tuple: (media_id, type)
+      - media_id (str): 微信返回的媒体文件ID。
+      - type (str): 媒体文件的类型，可以是'image', 'voice', 'video', 或 'file'。
+
+    抛出:
+    - ValueError: 如果文件大小不符合微信的要求或其他上传错误。
+
+    注意:
+    - 文件大小必须大于5字节。
+    - 图片大小不能超过2MB，只支持JPG和PNG格式。
+    - 语音大小不能超过2MB，播放长度不能超过60秒，只支持AMR格式。
+    - 视频大小不能超过10MB，只支持MP4格式。
+    - 普通文件大小不能超过20MB。
+    """
+    access_token = get_access_token()
+    # API endpoint
+    url = f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}"
+    # 确定文件名
+    if not filename:
+        filename = os.path.basename(filepath)
+    
+    # 检查文件大小并确定类型
+    file_size = os.path.getsize(filepath)
+    mime_type, encoding = guess_type(filepath)
+    media_type = guess_media_type(mime_type)
+
+    if media_type == 'image' and (file_size > 2*1024*1024 or mime_type not in ['image/jpeg', 'image/png']):
+        raise ValueError("图片大小超过2MB或格式不支持")
+    elif media_type == 'voice' and (file_size > 2*1024*1024 or mime_type != 'audio/amr'):
+        raise ValueError("语音大小超过2MB或格式不支持")
+    elif media_type == 'video' and (file_size > 10*1024*1024 or mime_type != 'video/mp4'):
+        raise ValueError("视频大小超过10MB或格式不支持")
+    elif media_type == 'file' and file_size > 20*1024*1024:
+        raise ValueError("文件大小超过20MB")
+    elif file_size < 5:
+        raise ValueError("文件大小必须大于5字节")
+
+    # 上传文件
+    data = {
+        'type': media_type
+    }
+    files = {'media': (filename, open(filepath, 'rb'), mime_type)}
+
+    response = requests.post(url, data=data, files=files)
+    response_data = response.json()
+
+    # 检查返回数据
+    if 'media_id' in response_data and 'type' in response_data:
+        return response_data['media_id'], response_data['type']
+    else:
+        raise ValueError(f"上传失败: {response_data.get('errmsg')}")
